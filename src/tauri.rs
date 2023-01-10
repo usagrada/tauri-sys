@@ -45,6 +45,18 @@ pub async fn convert_file_src(file_path: &str, protocol: Option<&str>) -> crate:
     Ok(serde_wasm_bindgen::from_value(js_val)?)
 }
 
+type Response<T, E> = Result<T, ResponseError<E>>;
+
+#[derive(Debug)]
+pub enum ResponseError<E> {
+    ReceivedError {
+        error: E,
+    },
+    LibraryError {
+        message: String,
+    },
+}
+
 /// Sends a message to the backend.
 ///
 /// # Example
@@ -64,10 +76,35 @@ pub async fn convert_file_src(file_path: &str, protocol: Option<&str>) -> crate:
 /// @param args The optional arguments to pass to the command.
 /// @return A promise resolving or rejecting to the backend response.
 #[inline(always)]
-pub async fn invoke<A: Serialize, R: DeserializeOwned>(cmd: &str, args: &A) -> crate::Result<R> {
-    let raw = inner::invoke(cmd, serde_wasm_bindgen::to_value(args)?).await?;
-
-    serde_wasm_bindgen::from_value(raw).map_err(Into::into)
+pub async fn invoke<A: Serialize, R: DeserializeOwned, E: DeserializeOwned>(
+    cmd: &str,
+    args: &A,
+) -> Response<R, E> {
+    let raw = inner::invoke(
+        cmd,
+        serde_wasm_bindgen::to_value(args).expect("serde binding error"),
+    )
+    .await;
+    match raw {
+        Ok(raw) => {
+            let res = serde_wasm_bindgen::from_value(raw);
+            match res {
+                Ok(res) => Ok(res),
+                Err(e) => Err(ResponseError::LibraryError {
+                    message: e.to_string(),
+                }),
+            }
+        }
+        Err(e) => {
+            let error = serde_wasm_bindgen::from_value(e);
+            match error {
+                Ok(e) => Err(ResponseError::ReceivedError { error: e }),
+                Err(e) => Err(ResponseError::LibraryError {
+                    message: e.to_string(),
+                }),
+            }
+        }
+    }
 }
 
 /// Transforms a callback function to a string identifier that can be passed to the backend.
