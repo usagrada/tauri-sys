@@ -66,7 +66,7 @@
 //!
 //!     let errors = win.listen("tauri://error").await?
 //!         .take(3);
-//!     
+//!
 //!     while let Some(err) = errors.next().await {
 //!         log::error!("Something bad happened! {}", err)
 //!     }
@@ -146,7 +146,7 @@ pub mod updater;
 #[cfg(feature = "window")]
 pub mod window;
 
-pub(crate) use error::Error;
+pub use error::Error;
 pub(crate) type Result<T> = core::result::Result<T, Error>;
 
 #[cfg(any(feature = "dialog", feature = "window"))]
@@ -155,24 +155,24 @@ pub(crate) mod utils {
         pos: u32,
         arr: js_sys::Array,
     }
-    
+
     impl ArrayIterator {
         pub fn new(arr: js_sys::Array) -> Self {
             Self { pos: 0, arr }
         }
     }
-    
+
     impl Iterator for ArrayIterator {
         type Item = wasm_bindgen::JsValue;
-    
+
         fn next(&mut self) -> Option<Self::Item> {
             let raw = self.arr.get(self.pos);
-    
+
             if raw.is_undefined() {
                 None
             } else {
                 self.pos += 1;
-    
+
                 Some(raw)
             }
         }
