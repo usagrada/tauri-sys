@@ -45,17 +45,7 @@ pub async fn convert_file_src(file_path: &str, protocol: Option<&str>) -> crate:
     Ok(serde_wasm_bindgen::from_value(js_val)?)
 }
 
-type Response<T, E> = Result<T, ResponseError<E>>;
-
-#[derive(Debug)]
-pub enum ResponseError<E> {
-    ReceivedError {
-        error: E,
-    },
-    LibraryError {
-        message: String,
-    },
-}
+type Response<T, E> = Result<T, crate::Error<E>>;
 
 /// Sends a message to the backend.
 ///
@@ -90,18 +80,14 @@ pub async fn invoke<A: Serialize, R: DeserializeOwned, E: DeserializeOwned>(
             let res = serde_wasm_bindgen::from_value(raw);
             match res {
                 Ok(res) => Ok(res),
-                Err(e) => Err(ResponseError::LibraryError {
-                    message: e.to_string(),
-                }),
+                Err(e) => Err(crate::Error::from(e)),
             }
         }
         Err(e) => {
             let error = serde_wasm_bindgen::from_value(e);
             match error {
-                Ok(e) => Err(ResponseError::ReceivedError { error: e }),
-                Err(e) => Err(ResponseError::LibraryError {
-                    message: e.to_string(),
-                }),
+                Ok(e) => Err(crate::Error::CustomError(e)),
+                Err(e) => Err(crate::Error::from(e)),
             }
         }
     }
